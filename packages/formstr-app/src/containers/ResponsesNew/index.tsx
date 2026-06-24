@@ -19,6 +19,7 @@ import {
 } from "../../utils/formUtils";
 import { Field, Tag, FileUploadMetadata } from "../../nostr/types";
 import { ResponseDetailModal } from "./components/ResponseDetailModal";
+import { ResponseNavigator } from "./components/ResponseNavigator";
 import {
   getResponseRelays,
   getInputsFromResponseEvent,
@@ -199,8 +200,6 @@ export const Response = () => {
   };
 
   const handleFileDownload = async (metadataJson: string) => {
-    console.log("handleFileDownload called with:", { metadataJson, editKey });
-
     if (!editKey) {
       message.error(t("responses.fileDownloadUnavailable"));
       return;
@@ -208,15 +207,11 @@ export const Response = () => {
 
     try {
       const metadata: FileUploadMetadata = JSON.parse(metadataJson);
-      console.log("Parsed metadata:", metadata);
-      console.log("metadata.uploaderPubkey:", metadata.uploaderPubkey);
 
       if (!metadata.uploaderPubkey) {
         message.error(t("responses.fileUploadedOldVersion"));
         return;
       }
-
-      console.log("Attempting download with uploaderPubkey:", metadata.uploaderPubkey);
 
       await downloadEncryptedFile({
         metadata,
@@ -389,7 +384,7 @@ export const Response = () => {
         dataIndex: fieldId,
         width: 150,
       };
-      
+
       // Add custom render for rating fields
       if (fieldType === "rating") {
         const answerSettings = JSON.parse(field[5] || '{"maxStars": 5}');
@@ -466,7 +461,7 @@ export const Response = () => {
           );
         };
       }
-      
+
       // Add custom render for file upload fields
       if (fieldType === "file") {
         column.render = (data: string, record: any) => {
@@ -582,6 +577,47 @@ export const Response = () => {
 
   const hasResponses = responses && responses.length > 0;
 
+  const renderResponsesTab = () => {
+    // Mobile: swipeable, filled-form navigator. Desktop: data table.
+    if (isMobile()) {
+      if (responses === undefined) {
+        return (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              padding: "48px 0",
+            }}
+          >
+            <Spin tip={t("responses.lookingForResponses")} />
+          </div>
+        );
+      }
+      return formSpec ? (
+        <ResponseNavigator
+          formSpec={formSpec}
+          responses={responses}
+          editKey={editKey}
+          formstrBranding={getformstrBranding(formSpec)}
+        />
+      ) : null;
+    }
+    return (
+      <div style={{ overflow: "scroll", marginBottom: 60 }}>
+        <Table
+          columns={getColumns()}
+          dataSource={getData()}
+          pagination={{ pageSize: 10 }}
+          loading={{
+            spinning: responses === undefined,
+            tip: t("responses.lookingForResponses"),
+          }}
+          scroll={{ x: isMobile() ? 900 : 1500, y: "calc(65% - 400px)" }}
+        />
+      </div>
+    );
+  };
+
   return (
     <div>
       <SummaryStyle>
@@ -618,20 +654,7 @@ export const Response = () => {
             {
               key: "responses",
               label: t("responses.responsesTab"),
-              children: (
-                <div style={{ overflow: "scroll", marginBottom: 60 }}>
-                  <Table
-                    columns={getColumns()}
-                    dataSource={getData()}
-                    pagination={{ pageSize: 10 }}
-                    loading={{
-                      spinning: responses === undefined,
-                      tip: t("responses.lookingForResponses"),
-                    }}
-                    scroll={{ x: isMobile() ? 900 : 1500, y: "calc(65% - 400px)" }}
-                  />
-                </div>
-              ),
+              children: renderResponsesTab(),
             },
             {
               key: "analytics",
